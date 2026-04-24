@@ -1,0 +1,69 @@
+---
+title: "lucy install — sync managed runtime state"
+description: "lucy install converges the managed runtime scope from lockfile facts. The only Lucy command that places files on disk. Run after lucy add or lucy remove."
+---
+
+`lucy install` is the explicit convergence step. It reads the current lockfile and manifest, determines what the managed runtime scope should look like, and then downloads and places the appropriate files on disk. Among all Lucy commands, `install` is the only one that writes to the server's file system — [`lucy add`](/commands/add) and [`lucy remove`](/commands/remove) only update Lucy's state files and never touch the runtime.
+
+## How install works
+
+When you run `lucy install`, Lucy follows this resolution order:
+
+1. **Exact lock path** — if the lockfile is current (its manifest fingerprint matches the manifest on disk) and the lock is consistent with the manifest, Lucy uses the exact versions, hashes, and install paths recorded in the lockfile. No re-resolution is needed.
+2. **Fallback to manifest intent** — if the lockfile is stale or absent, Lucy re-resolves from the `required` entries in the manifest and refreshes the lockfile with the new exact facts.
+
+## Managed scope
+
+`install` only operates within the managed scope defined by `managed_roots` in `.lucy/config.toml`. It does not inspect, modify, or delete content outside that boundary. Manual files, `ignored` packages, and paths outside the managed scope are never touched.
+
+<Info>
+  `install` does not mean "delete everything not in the manifest." It applies Lucy's lockfile to the specific directories Lucy owns and leaves everything else alone.
+</Info>
+
+## When to run `install`
+
+Run `install` after any of the following:
+
+- `lucy add` — to download and place newly added packages
+- `lucy remove` — to remove files for packages that were dropped from the manifest
+- The lockfile is stale (the manifest changed without a corresponding lock update)
+- You want to repair or re-verify the managed runtime state
+
+## Flags
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Apply the lockfile to the managed runtime scope
+lucy install
+
+# Add a mod and immediately sync the runtime
+lucy add neoforge/create-aeronautics@latest
+lucy install
+
+# Remove a mod and immediately converge the runtime
+lucy remove fabric/sodium
+lucy install
+```

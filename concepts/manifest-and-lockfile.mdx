@@ -1,0 +1,155 @@
+---
+title: "Manifest intent and lockfile facts"
+description: "Lucy separates desired intent (manifest.json) from exact resolved facts (lock.json). Learn what each file owns, how they differ, and why the separation matters."
+---
+
+Lucy uses two files to track the state of a managed server: `.lucy/manifest.json` and `.lucy/lock.json`. These files have distinct roles and are never interchangeable. The manifest records what you want — soft, human-readable intent. The lockfile records what was resolved — exact, reproducible facts. Keeping these concerns separate is what allows Lucy to be both flexible at the intent layer and precise at the artifact layer.
+
+## The two-layer model
+
+```text
+.lucy/
+  manifest.json   ← intent: what you want and at what version constraint
+  lock.json       ← facts: exact versions, hashes, URLs, and install paths
+```
+
+The manifest is the source of truth for operator intent. The lockfile is the source of truth for what is currently applied to the managed scope. Commands like `lucy add` and `lucy remove` change intent and then recalculate facts. `lucy install` reads the facts and applies them to the runtime without touching the manifest.
+
+## manifest.json
+
+The manifest stores your desired environment state. It is written in JSON and lives at `.lucy/manifest.json`. Lucy preserves the manifest exactly as expressed — version selectors like `@latest` or `@compatible` are never rewritten to concrete versions.
+
+The manifest has three top-level sections:
+
+- **`environment`** — records the game version, server core, modding platform, and any compatible platform layers.
+- **`packages`** — the list of packages Lucy should manage, each with an ID, version intent, source preference, and role.
+- **`bundles`** — non-package managed artifacts such as config archives, datapacks, and resource packs.
+
+### Example manifest
+
+```json
+{
+  "format_version": "v1",
+  "environment": {
+    "game_version": "1.21.4",
+    "server_core": "fabric",
+    "server_core_version": "0.16.9",
+    "modding_platform": "fabric",
+    "modding_platform_version": "0.16.9",
+    "compatible_platforms": ["mcdr"],
+    "mcdr": true,
+    "declared_capabilities": []
+  },
+  "packages": [
+    {
+      "id": "fabric/fabric-api",
+      "version": "compatible",
+      "source": "modrinth",
+      "role": "required",
+      "side": "server",
+      "optional": false,
+      "pinned": false
+    },
+    {
+      "id": "fabric/lithium",
+      "version": "latest",
+      "source": "auto",
+      "role": "required",
+      "side": "server",
+      "optional": false,
+      "pinned": false
+    },
+    {
+      "id": "fabric/indium",
+      "version": "0.1.4+mc1.21.4",
+      "source": "modrinth",
+      "role": "transitive",
+      "side": "server",
+      "optional": false,
+      "pinned": false
+    }
+  ],
+  "bundles": []
+}
+```
+
+## lock.json
+
+The lockfile stores exact resolved facts. It is written in JSON and lives at `.lucy/lock.json`. Every field in a lockfile entry is concrete — no fuzzy selectors, no ranges. The lockfile is generated from the manifest and is tied to it via a `manifest_fingerprint` field. If the manifest changes, Lucy treats the lock as stale.
+
+Each locked package record contains:
+
+- **`id`** — the fully-qualified `platform/name` identifier.
+- **`version`** — the exact concrete version that was resolved.
+- **`source`** — the upstream source the artifact was fetched from.
+- **`url`** — the direct download URL for the artifact.
+- **`filename`** — the filename as it appears on disk.
+- **`hash`** and **`hash_algorithm`** — integrity digest for the downloaded file (`sha512` or `sha1`).
+- **`install_path`** — the relative path where Lucy placed the file.
+- **`provenance`** — the chain of packages that caused this package to be included.
+- **`requester`** — the immediate package or `"root"` that pulled in this entry.
+
+### Example lockfile
+
+```json
+{
+  "version": "v1",
+  "generated_at": "2025-04-24T10:00:00Z",
+  "manifest_fingerprint": "sha256:a1b2c3d4...",
+  "game_version": "1.21.4",
+  "platform": "fabric",
+  "platform_version": "0.16.9",
+  "packages": [
+    {
+      "id": "fabric/fabric-api",
+      "version": "0.119.5+1.21.4",
+      "source": "modrinth",
+      "url": "https://cdn.modrinth.com/data/.../fabric-api-0.119.5+1.21.4.jar",
+      "filename": "fabric-api-0.119.5+1.21.4.jar",
+      "hash": "abc123...",
+      "hash_algorithm": "sha512",
+      "install_path": "mods/fabric-api-0.119.5+1.21.4.jar",
+      "side": "server",
+      "optional": false,
+      "embedded": false,
+      "provenance": ["root"],
+      "requester": "root"
+    }
+  ]
+}
+```
+
+## Package roles
+
+Every package entry in the manifest carries a `role` that tells Lucy how it entered the managed closure and how it should be treated during subsequent operations:
+
+| Role | Meaning |
+|---|---|
+| `required` | Explicit operator intent. You added this package directly with `lucy add`. Lucy will not auto-prune it. |
+| `transitive` | Resolver-derived dependency. Lucy added this automatically because a `required` package depends on it. Lucy may auto-prune it when no `required` package needs it anymore. |
+| `ignored` | Known to Lucy but explicitly left outside sync responsibility. Lucy sees this package but never installs, removes, or modifies it. |
+
+## Command side-effect matrix
+
+Different commands own different layers. This table shows exactly what each command touches:
+
+| Command | Mutates manifest | Mutates lockfile | Mutates runtime |
+|---|---|---|---|
+| `lucy add` | Yes | Yes | No |
+| `lucy remove` | Yes | Yes | No |
+| `lucy install` | No | Yes | Yes |
+
+`lucy add` and `lucy remove` are intent operations. They change what you want and recalculate the exact resolution, but they never touch the runtime. `lucy install` is a convergence operation. It reads the lockfile and applies the exact facts to the managed runtime scope — it never changes what you want.
+
+## Why the separation matters
+
+Keeping intent and facts in separate files has concrete benefits:
+
+- **Reproducibility.** The lockfile pins exact versions, hashes, and URLs. Anyone who checks out the same lockfile gets the same artifacts.
+- **Safe editing.** You can edit the manifest to change intent without immediately affecting what is on disk. Changes only apply to the runtime after you run `lucy install`.
+- **Auditability.** The lockfile carries `provenance` chains for every transitive package so you can trace exactly why a package is present.
+- **Drift detection.** Lucy compares the `manifest_fingerprint` in the lockfile against the current manifest to detect when the lock is stale and a re-resolution is needed.
+
+<Note>
+  Lucy preserves version selectors like `@latest` and `@compatible` in the manifest verbatim. Only the lockfile records the concrete version that was resolved at resolution time. This means the manifest remains a readable expression of intent across upgrades.
+</Note>

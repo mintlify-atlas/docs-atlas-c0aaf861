@@ -1,0 +1,100 @@
+---
+title: "Managed scope and unmanaged content"
+description: "Lucy only manages what you place in its scope. Learn how managed_roots, unmanaged_paths, and the ignored role let manual and managed content coexist safely."
+---
+
+Lucy does not attempt to own everything in a server directory. Instead, it draws a precise boundary — called the managed scope — and only claims responsibility for what you explicitly place inside it. Content outside the managed scope is never read, written, or deleted by Lucy. This design lets manual files, custom configs, and Lucy-managed packages coexist in the same server directory without conflict.
+
+## What managed scope means
+
+The managed scope is the set of directories and files that Lucy tracks, installs into, and synchronizes. When you run `lucy install`, Lucy only creates, replaces, or removes artifacts within this boundary. Anything outside the boundary — a hand-placed JAR, a custom config written by hand, a file placed by a different tool — is left completely untouched.
+
+Lucy determines the scope from two sources in `.lucy/config.toml`:
+
+1. **`managed_roots`** — directories Lucy installs packages into and monitors for drift.
+2. **`unmanaged_paths`** — glob patterns that opt specific paths back out of scope even if they sit inside a managed root.
+
+## Managed roots
+
+Managed roots are the directories where Lucy installs and tracks packages. Each root is a relative path from the server directory. Lucy automatically classifies files in each root by artifact type:
+
+| Default root | Artifact class |
+|---|---|
+| `mods` | Mod JARs |
+| `plugins` | Plugin JARs |
+| `config` | Configuration files |
+
+You can change the list of managed roots in `.lucy/config.toml`:
+
+```toml
+[scope]
+managed_roots = ["mods", "plugins", "config"]
+```
+
+If you remove a directory from `managed_roots`, Lucy stops tracking files there entirely. Files in that directory are not deleted — they simply fall outside the managed scope.
+
+## Unmanaged paths
+
+Unmanaged paths are glob patterns that exclude specific files or subdirectories from drift detection, even when those paths fall inside a managed root. Files matching an unmanaged pattern are ignored by `lucy status` and are not touched by `lucy install`.
+
+```toml
+[scope]
+unmanaged_paths = ["config/custom-plugin/**"]
+```
+
+Use unmanaged paths when you want Lucy to manage most of a directory while leaving a specific subdirectory under manual control.
+
+## Preserve on remove
+
+When Lucy removes a package, it may clean up associated files. The `preserve_on_remove` list tells Lucy to skip deletion for files matching the given glob patterns, even when a package that placed them is removed.
+
+```toml
+[scope]
+preserve_on_remove = ["config/**"]
+```
+
+The default value of `["config/**"]` means configuration files written by a package are never automatically deleted when that package is removed. This prevents Lucy from wiping hand-edited configuration when you uninstall a mod or plugin.
+
+## The `ignored` role
+
+Beyond path-level scope boundaries, individual packages can be marked with the `ignored` role in the manifest. An ignored package is one that Lucy knows about but explicitly leaves outside its sync responsibility. Lucy never installs, removes, or modifies an ignored package.
+
+The `ignored` role is useful when you want Lucy to acknowledge a package's existence — for example, because it appears in the server directory — without taking ownership of it. A common case is a JAR you placed manually that you want Lucy to see but not touch.
+
+```toml
+[[packages]]
+id = "fabric/some-manual-mod"
+version = "1.0.0"
+source = "auto"
+role = "ignored"
+side = "server"
+optional = false
+pinned = false
+```
+
+Unlike `required` and `transitive` packages, `ignored` entries survive `lucy remove` and are never auto-pruned.
+
+## Full scope configuration
+
+The complete `ScopeConfig` options in `.lucy/config.toml`:
+
+```toml
+[scope]
+# Directories Lucy installs and tracks packages in.
+managed_roots = ["mods", "plugins", "config"]
+
+# Glob patterns excluded from drift detection.
+# Files matching these patterns are ignored by status and install.
+unmanaged_paths = []
+
+# Glob patterns for files to keep even when packages are removed.
+preserve_on_remove = ["config/**"]
+```
+
+<Tip>
+  Manual files and Lucy-managed files can coexist safely in the same server directory. Place manually managed JARs outside the managed roots (or add their paths to `unmanaged_paths`), and Lucy will leave them alone while still managing everything else in its scope.
+</Tip>
+
+<Warning>
+  `lucy install` never deletes content outside the managed scope. It only creates, replaces, or removes files within managed roots that are not excluded by `unmanaged_paths`. Files you place manually in unmanaged locations are always safe.
+</Warning>

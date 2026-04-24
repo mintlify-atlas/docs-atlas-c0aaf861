@@ -1,0 +1,114 @@
+---
+title: "lucy cache — manage the download cache"
+description: "lucy cache ls lists cached package downloads. lucy cache clear removes all cached files. The cache speeds up repeated installs and package resolution."
+---
+
+`lucy cache` manages the local network download cache that Lucy uses to avoid re-fetching package files and upstream metadata it has already retrieved. A warm cache speeds up `lucy install`, `lucy add`, and `lucy info` by serving repeated requests from disk rather than the network. The cache command group provides two subcommands: `ls` to inspect cache contents and `clear` to remove all cached entries.
+
+Lucy also maintains a separate slug resolution cache that maps source-local package IDs to canonical slugs. This is managed under the `lucy cache slugs` subcommand group.
+
+## Subcommands
+
+### `lucy cache ls`
+
+Lists all entries currently stored in the download cache, sorted from newest to oldest. Each entry shows its cache key, kind, size, and remaining expiration time.
+
+```bash
+lucy cache ls
+lucy cache ls --json
+lucy cache ls --no-style
+```
+
+### `lucy cache clear`
+
+Removes all entries from the download cache and reports how many files were deleted and how much disk space was freed.
+
+```bash
+lucy cache clear
+```
+
+### `lucy cache slugs ls`
+
+Lists all entries in the local slug resolution cache. Each entry shows the source, local ID, canonical slug, and a short file hash.
+
+```bash
+lucy cache slugs ls
+lucy cache slugs ls --json
+```
+
+### `lucy cache slugs clear`
+
+Clears all slug mappings from the local slug resolution cache.
+
+```bash
+lucy cache slugs clear
+```
+
+## Flags — `cache ls`
+
+<ParamField path="--json" type="boolean" default="false">
+  Output cache entries as machine-readable JSON.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Flags — `cache clear`
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Flags — `cache slugs ls`
+
+<ParamField path="--json" type="boolean" default="false">
+  Output slug map entries as machine-readable JSON.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Flags — `cache slugs clear`
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# List all cached download entries
+lucy cache ls
+
+# List cache entries as JSON for scripting
+lucy cache ls --json
+
+# Clear the entire download cache
+lucy cache clear
+
+# List slug resolution cache entries
+lucy cache slugs ls
+
+# Clear the slug resolution cache
+lucy cache slugs clear
+```

@@ -1,0 +1,87 @@
+---
+title: "Using Lucy in CI/CD pipelines"
+description: "Use Lucy's --yes flag, --json output, and --no-style to automate Minecraft server package management in GitHub Actions, shell scripts, and other CI/CD systems."
+---
+
+Lucy is designed to work in automated environments without modification. The `--yes` flag skips all interactive prompts, `--json` produces machine-readable output from commands like `lucy status` and `lucy search`, and `--no-style` strips ANSI color codes so log output stays clean in CI runners. These flags compose naturally — you can run any Lucy command in a pipeline with the same semantics it has locally.
+
+## Key flags for automation
+
+| Flag | Commands | Effect |
+|---|---|---|
+| `--yes` / `-y` | `lucy init` | Skip all prompts; accept defaults without interaction. |
+| `--no-style` | All commands | Disable ANSI color codes and styled output. Use in CI to keep logs readable. |
+| `--json` | `lucy status`, `lucy search`, `lucy cache ls` | Emit structured JSON to stdout instead of the default styled output. |
+| `--debug` | All commands | Enable verbose debug logging. |
+| `--print-logs` | All commands | Print internal log lines to the console alongside normal output. |
+
+<Tip>
+  `--no-style` and `--json` are independent. Use `--json` when you want to parse the output programmatically, and `--no-style` when you want plain text output that is still human-readable in log viewers.
+</Tip>
+
+## GitHub Actions example
+
+The workflow below triggers whenever `.lucy/` state files change in the repository. It checks out the repo, installs Lucy, and runs `lucy install` to sync the server packages based on the committed manifest and lockfile.
+
+```yaml
+name: Sync Minecraft server packages
+on:
+  push:
+    paths:
+      - '.lucy/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Install Lucy
+        run: go install github.com/mclucy/lucy@latest
+      - name: Sync packages
+        run: lucy install --no-style
+```
+
+`lucy install` reads `.lucy/manifest.json` and `.lucy/lock.json` from the checked-out repository and applies them to the managed runtime scope. It exits with a non-zero status code on failure, so the pipeline step fails naturally if something goes wrong.
+
+## Shell script example
+
+Use `--json` with a tool like `jq` to extract specific values from `lucy status` output and branch on them in shell scripts:
+
+```bash
+#!/bin/bash
+set -e
+
+STATUS=$(lucy status --json)
+echo "Game version: $(echo $STATUS | jq -r '.runtime.game_version')"
+
+lucy install --no-style
+```
+
+The `set -e` flag ensures the script stops immediately if any Lucy command exits with a non-zero code — the standard way to propagate errors in shell automation.
+
+## Recommended git workflow
+
+Lucy's state files have distinct versioning properties. Follow these conventions to keep your repository clean and your pipeline deployments reproducible:
+
+- **Commit** `.lucy/manifest.json` — this is your declared intent and should be version-controlled.
+- **Commit** `.lucy/lock.json` — this records exact resolved facts (versions, hashes, download URLs) and enables reproducible installs in CI.
+- **Do not commit** `.lucy/config.toml` if it contains machine-specific paths (for example, absolute `managed_roots` referencing a local server directory). Keep a template or generate it during deployment instead.
+
+The typical local development cycle looks like this:
+
+1. Run `lucy add fabric/some-mod@latest` locally to update the manifest and lockfile.
+2. Commit the updated `manifest.json` and `lock.json`.
+3. Push. The CI pipeline detects the change in `.lucy/**` and runs `lucy install` on the deployment target.
+
+This separates intent editing (local) from runtime synchronization (CI), which keeps deployments deterministic.
+
+<Tip>
+  The `--conflict overwrite` flag is useful in CI environments where you want Lucy to always win over any leftover state from a previous run. Combine it with `--yes` for a fully non-interactive reinit:
+
+  ```bash
+  lucy init --yes --conflict overwrite --game-version 1.21.4
+  ```
+</Tip>

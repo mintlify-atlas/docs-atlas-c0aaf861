@@ -1,0 +1,107 @@
+---
+title: "lucy add — add packages to the server"
+description: "lucy add inserts or upgrades required package intent in the manifest, resolves the full dependency closure, and updates the lockfile with exact resolved facts."
+---
+
+`lucy add` is how you place packages under Lucy's explicit management. It records your intent as `required` in `.lucy/manifest.json`, resolves the full transitive dependency closure from upstream sources, and writes exact resolved facts — versions, hashes, install paths, and provenance — to `.lucy/lock.json`. The runtime is not touched by `add`; run [`lucy install`](/commands/install) afterward to apply the lockfile to the server's file system.
+
+## Package identifier syntax
+
+Packages are addressed using the format `platform/project@version`:
+
+```text
+fabric/fabric-api@1.2.3
+   ↑       ↑        ↑
+platform  name   version
+```
+
+All parts except the project name are optional:
+
+- **platform** — compatibility target such as `fabric`, `forge`, `neoforge`, or `mcdr`. Omit to let Lucy infer from the current environment.
+- **project** — name or slug of the mod or plugin.
+- **version** — exact version, `@latest`, or `@compatible`. Omitting the version is equivalent to `@compatible`.
+
+## Version selectors
+
+| Selector | Meaning |
+|---|---|
+| `@latest` | Newest available version from the upstream source |
+| `@compatible` | Newest version that appears compatible with the inferred server environment (default when omitted) |
+| `@1.2.3` | Exact pinned version |
+
+## How `add` updates state
+
+`add` writes two files and never writes to the runtime:
+
+1. **Manifest** — the addressed package is inserted as `required` intent if it is not already present, or its version selector is upgraded if it is. Unrelated packages in the manifest are not touched. Packages marked `ignored` are never converted to managed intent.
+2. **Lockfile** — the dependency closure implied by the updated manifest is re-resolved. Exact facts for both `required` roots and resulting `transitive` dependencies are recorded, replacing any stale entries.
+
+<Warning>
+  `lucy add` does not download or place files on disk. Run `lucy install` to synchronize the managed runtime scope with the updated lockfile.
+</Warning>
+
+## Multiple packages in one command
+
+You can add several packages in a single invocation. Lucy resolves them together:
+
+```bash
+lucy add fabric/lithium@latest fabric/sodium@latest fabric/iris@latest
+```
+
+## Flags
+
+<ParamField path="--force" type="boolean" default="false">
+  Ignore version, dependency, and platform compatibility warnings and proceed anyway. Shorthand: `-f`.
+</ParamField>
+
+<ParamField path="--with-optional" type="boolean" default="false">
+  Also install optional upstream dependencies declared by the added packages.
+</ParamField>
+
+<ParamField path="--no-optional" type="boolean" default="false">
+  Skip optional upstream dependencies. This is the default behavior; the flag is provided for explicitness. Cannot be combined with `--with-optional`.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Add a mod by name only — platform and version inferred from environment
+lucy add fabric-api
+
+# Add the latest version of a specific mod on Fabric
+lucy add fabric/lithium@latest
+
+# Add a NeoForge mod at its latest available version
+lucy add neoforge/create-aeronautics@latest
+
+# Add an MCDR plugin using compatible version resolution
+lucy add mcdr/example-plugin@compatible
+
+# Add multiple mods in one command
+lucy add fabric/lithium@latest fabric/sodium@latest
+
+# Add a mod and include its optional dependencies
+lucy add fabric/fabric-api --with-optional
+```

@@ -1,0 +1,122 @@
+---
+title: "Platforms and package sources"
+description: "Lucy supports Fabric, Forge, NeoForge, MCDR, and Bukkit platforms, and resolves packages from Modrinth, CurseForge, GitHub, and the MCDR Plugin Catalog."
+---
+
+Lucy separates two orthogonal concepts: the **platform** a package targets, and the **source** where Lucy fetches the package from. A platform describes the runtime surface a package is built for — for example, the Fabric mod loader or the MCDReforged plugin framework. A source is an upstream registry or catalog where package metadata and download artifacts live — for example, Modrinth or CurseForge. Understanding both helps you write precise package identifiers and configure source resolution preferences in `.lucy/config.toml`.
+
+## Platforms
+
+A platform is the compatibility or runtime surface a package targets. When you specify a platform in a package identifier, Lucy filters search results and version resolution to packages that declare support for that platform. When you omit the platform, Lucy infers it from the server environment recorded during `lucy init`.
+
+<AccordionGroup>
+  <Accordion title="fabric — Fabric mod loader">
+    The Fabric mod loader for Minecraft. Fabric mods are typically resolved from Modrinth and CurseForge. Fabric servers can also declare `sinytra` as a compatible platform to load certain Fabric mods on NeoForge through the Sinytra Connector.
+
+    ```bash
+    lucy add fabric/lithium@latest
+    lucy add fabric/fabric-api
+    ```
+  </Accordion>
+
+  <Accordion title="forge — Minecraft Forge">
+    The long-standing Minecraft Forge mod loader. Forge mods are resolved from Modrinth and CurseForge.
+
+    ```bash
+    lucy add forge/jei@latest
+    ```
+  </Accordion>
+
+  <Accordion title="neoforge — NeoForge mod loader">
+    The NeoForge mod loader, a community fork of Forge. NeoForge servers support compatible platform layers: they can optionally load `mcdr` plugins and, when the Sinytra Connector is present, Fabric mods via the `sinytra` compatible platform.
+
+    ```bash
+    lucy add neoforge/create-aeronautics@latest
+    ```
+  </Accordion>
+
+  <Accordion title="mcdr — MCDReforged">
+    MCDReforged is an independent server controller and plugin framework. It runs alongside a Minecraft server process as an external manager rather than as an in-process mod loader. MCDR plugins are resolved from the MCDR Plugin Catalog (`mcdr` source).
+
+    ```bash
+    lucy add mcdr/example-plugin@compatible
+    lucy add mcdr/prime-backup
+    ```
+  </Accordion>
+
+  <Accordion title="bukkit — Bukkit-derived plugin layer">
+    The Bukkit plugin API, consumed by Paper, Spigot, Folia, CraftBukkit, and other compatible servers. Bukkit plugins are typically resolved from Modrinth, Hangar, or Spiget.
+
+    ```bash
+    lucy add bukkit/essentialsx
+    ```
+  </Accordion>
+
+  <Accordion title="minecraft / none — vanilla or platform-agnostic">
+    `minecraft` identifies the vanilla Minecraft server binary itself — there is no modding platform. `none` is a special marker meaning the package is not tied to any specific platform and is satisfied by any runtime. Both are most commonly used with identity packages when pinning the game version or server core.
+
+    ```bash
+    lucy add minecraft@1.21.4
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Compatible platforms
+
+Some server setups mix multiple modding surfaces at once. Lucy records these as compatible platforms in the manifest's `environment.compatible_platforms` list alongside the primary `environment.modding_platform`.
+
+| Primary platform | Possible compatible platforms |
+|---|---|
+| `neoforge` | `fabric` (via Sinytra Connector), `mcdr` |
+| `fabric` | `mcdr` |
+| `forge` | `mcdr` |
+
+Compatible platforms let Lucy correctly categorize and resolve packages for multi-layer environments. For example, a NeoForge server with Sinytra Connector can load Fabric mods; Lucy records `sinytra` in `compatible_platforms` to signal this.
+
+## Sources
+
+A source is an upstream catalog where Lucy fetches package metadata and download artifacts. Lucy supports the following sources:
+
+| Source | Description | Identifier |
+|---|---|---|
+| Modrinth | Primary mod and plugin registry for Fabric, Forge, NeoForge, and Bukkit | `modrinth` |
+| CurseForge | Large mod registry with broad Forge and Fabric coverage | `curseforge` |
+| GitHub | Direct GitHub release downloads for projects not on a dedicated registry | `github` |
+| MCDR Plugin Catalog | Official plugin catalog for MCDReforged | `mcdr` |
+
+### Auto source selection
+
+When no source is specified — either in the package identifier or via the `--source` flag — Lucy uses `auto` routing. Under `auto`, Lucy queries sources in the order defined by `sources.priority` in `.lucy/config.toml`. The default priority order is:
+
+```toml
+[sources]
+priority = ["modrinth", "curseforge", "github", "mcdr"]
+```
+
+Lucy returns the first result found across the priority list. You can reorder this list to prefer a different source globally.
+
+### Restricting to a specific source
+
+To restrict a single command to one source, use the `--source` flag:
+
+```bash
+lucy search carpet --source modrinth
+lucy add fabric/carpet --source modrinth
+```
+
+You can also pin a source for a package in the manifest by setting the `source` field. Lucy respects this when resolving that package.
+
+### Typical platform-to-source mapping
+
+| Platform | Common sources |
+|---|---|
+| `fabric` | `modrinth`, `curseforge` |
+| `forge` | `modrinth`, `curseforge` |
+| `neoforge` | `modrinth`, `curseforge` |
+| `bukkit` | `modrinth`, `github` |
+| `mcdr` | `mcdr`, `github` |
+| `minecraft` | `modrinth`, `github` |
+
+<Note>
+  Not every source carries every platform. Modrinth covers Fabric, Forge, NeoForge, and Bukkit. The `mcdr` source covers only MCDR plugins. GitHub is a fallback for projects that publish releases there but are not listed on a dedicated registry.
+</Note>

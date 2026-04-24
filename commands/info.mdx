@@ -1,0 +1,85 @@
+---
+title: "lucy info — package details and version history"
+description: "lucy info displays metadata, description, and version history for a package, including the latest compatible version for your environment."
+---
+
+`lucy info` fetches and displays detailed metadata for a single mod or plugin from upstream sources. It shows the package name, description, authors, license, upstream URLs, the resolved download link, and the list of supported game versions. `info` is read-only — it never modifies the manifest, lockfile, or runtime.
+
+## What info shows
+
+| Field | Description |
+|---|---|
+| **Source** | Which upstream source the information was retrieved from |
+| **Name** | Full display name of the package |
+| **Description** | Short summary from the upstream source |
+| **Information** | Full description rendered as Markdown when available, or linked to the upstream page |
+| **Authors** | Author names with profile links |
+| **License** | License identifier |
+| **Links** | Homepage, issue tracker, source repository, and other upstream URLs |
+| **Download** | Resolved direct download URL and filename |
+| **Game versions** | List of Minecraft versions the package supports |
+
+By default, long descriptions and version lists are truncated to fit the terminal. Use `--long` to disable truncation and see everything.
+
+## Package identifier syntax
+
+`info` accepts the same `platform/project@version` format used by `lucy add`:
+
+```text
+lucy info fabric/fabric-api
+lucy info fabric/fabric-api@latest
+```
+
+The version selector tells Lucy which release to fetch details for. Omitting the version fetches the latest compatible release.
+
+## Flags
+
+<ParamField path="--source" type="string">
+  Fetch information from a specific upstream source. Accepted values: `modrinth`, `curseforge`, `github`, `mcdr`. Shorthand: `-s`.
+</ParamField>
+
+<ParamField path="--long" type="boolean" default="false">
+  Show extended information including the full description and complete game version list without truncation. Shorthand: `-l`.
+</ParamField>
+
+<ParamField path="--json" type="boolean" default="false">
+  Output the full package information structure as machine-readable JSON.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Show information for Fabric API
+lucy info fabric/fabric-api
+
+# Show extended information including the full description and all supported versions
+lucy info fabric/fabric-api@latest --long
+
+# Show information for an MCDR plugin
+lucy info mcdr/example-plugin
+
+# Fetch info from a specific source and output as JSON
+lucy info fabric/lithium --source modrinth --json
+```

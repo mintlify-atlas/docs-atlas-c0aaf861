@@ -1,97 +1,74 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Lucy: Minecraft Server Package Manager"
+description: "Lucy manages Minecraft server mods and plugins. Adopt existing servers, auto-resolve dependencies, and sync packages from Modrinth, CurseForge, and MCDR."
 ---
 
-## Setting up
+Lucy is a takeover-first environment manager for Minecraft servers. Instead of requiring a blank slate, Lucy inspects the server you already run, adopts it into a managed scope, and keeps your intent (manifest) separate from exact resolved facts (lockfile) — much like `apt`, `brew`, or `npm`, but designed for Minecraft.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install Lucy and manage your first Minecraft server in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Core concepts" icon="book" href="/concepts/package-identifiers">
+    Understand package identifiers, platforms, manifest intent, and lockfile facts.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Command reference" icon="terminal" href="/commands/init">
+    Full reference for every Lucy command and flag.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Configuration" icon="sliders" href="/configuration/config-file">
+    Tune source priority, upgrade policy, managed scope, and output format.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Lucy?
 
-Everything you need to create world-class documentation.
+Most Minecraft server tools assume a clean install. Lucy works the other way around: it starts from the server you already have, records what it finds, and then lets you decide what it should manage.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="Adopt an existing server" icon="server" href="/guides/existing-server-takeover">
+    Run `lucy init` on an existing server to take it over without losing anything.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Automatic dependency resolution" icon="diagram-project" href="/commands/add">
+    `lucy add` resolves transitive dependencies and records exact facts in the lockfile.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Multi-source packages" icon="database" href="/concepts/platforms-and-sources">
+    Install from Modrinth, CurseForge, GitHub, and the MCDR Plugin Catalog.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="CI/CD friendly" icon="gears" href="/guides/cicd-pipelines">
+    Machine-readable JSON output and `--yes` flags make Lucy scriptable.
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Get started
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Install Lucy">
+    ```bash
+    go install github.com/mclucy/lucy@latest
+    ```
+  </Step>
+  <Step title="Initialize your server">
+    Navigate to your server directory and run:
+    ```bash
+    lucy init
+    ```
+    Lucy inspects the directory, records what it finds, and creates `.lucy/config.toml`, `.lucy/manifest.json`, and `.lucy/lock.json`.
+  </Step>
+  <Step title="Add packages">
+    ```bash
+    lucy add fabric/fabric-api
+    lucy add neoforge/create-aeronautics@latest
+    ```
+    Dependencies are resolved and recorded automatically.
+  </Step>
+  <Step title="Sync your server">
+    ```bash
+    lucy install
+    ```
+    Applies the lockfile to your managed scope.
+  </Step>
+</Steps>
+
+<Note>
+  Lucy is currently under active development. Avoid using it in production environments before the first beta release.
+</Note>

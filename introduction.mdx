@@ -1,0 +1,70 @@
+---
+title: "Lucy: takeover-first Minecraft server manager"
+description: "Lucy is a CLI tool that adopts existing Minecraft servers, resolves mod and plugin dependencies, and syncs packages from Modrinth, CurseForge, GitHub, and MCDR."
+---
+
+Lucy is a server-aware environment manager for Minecraft servers. Unlike tools that require a clean slate, Lucy starts from the server you already run — it inspects what is actually installed, draws a managed boundary around the parts you want it to own, and keeps everything else untouched. If you have used `apt`, `brew`, or `npm`, the command patterns will feel familiar. The difference is that Lucy begins with live facts, not assumptions.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/quickstart">
+    Install Lucy and manage your first Minecraft server in under five minutes.
+  </Card>
+  <Card title="Core concepts" icon="book" href="/concepts/package-identifiers">
+    Understand package identifiers, platforms, manifest intent, and lockfile facts.
+  </Card>
+</CardGroup>
+
+## The takeover-first philosophy
+
+Most Minecraft server tools assume an empty directory. Lucy works the other way around. When you run `lucy init` on an existing server, Lucy inspects the live directory first — it discovers the server core, detects the modding platform, and records what is already installed. Only then does it ask you to decide what should become managed intent and what should remain outside its scope.
+
+Manual content and Lucy-managed content can coexist in the same server directory. Lucy only claims ownership of the parts you place in its scope. Nothing is overwritten until you confirm at the final review step.
+
+## Manifest and lockfile
+
+Lucy separates two distinct concerns:
+
+- **`.lucy/manifest.json`** — your intent. This file records which packages you want and at what version constraint (for example, `@latest` or `@compatible`). It is the source of truth for what you have asked for.
+- **`.lucy/lock.json`** — exact resolved facts. The lockfile records specific versions, file hashes, install paths, and provenance for every package in the managed scope. It is generated from the manifest and is the source of truth for what is actually installed.
+
+This separation means you can express soft intent in the manifest while the lockfile captures precise, reproducible state — a pattern familiar from modern language package managers.
+
+## Key features
+
+- Automatic dependency resolution and conflict handling
+- Discovery-led server probing and environment inference — Lucy detects game version, server core, and modding platform automatically
+- Take over an existing server before reshaping it; manual and managed content coexist
+- Manifest intent kept soft while exact lockfile facts are recorded separately
+- Topology-aware status reporting and risk surfacing
+- Package access from Modrinth, CurseForge, MCDR Plugin Catalog, and GitHub
+- Non-intrusive design — all operations are independent of server runtime
+- Machine-readable output formats for CI/CD pipelines and shell scripts
+- Shell completion for bash, zsh, fish, and PowerShell
+
+## Supported platforms
+
+Lucy resolves packages against the following modding platforms and runtime surfaces:
+
+| Platform | Description |
+|---|---|
+| `fabric` | Fabric mod loader |
+| `forge` | Minecraft Forge |
+| `neoforge` | NeoForge mod loader |
+| `mcdr` | MCDReforged plugin framework |
+| `bukkit` / `paper` | Bukkit-derived plugin servers (Paper, Spigot, Folia, and others) |
+| `minecraft` | Platform-agnostic or vanilla packages |
+
+Some environments mix multiple compatible platforms at once. Lucy records the full picture in the manifest.
+
+## Supported sources
+
+| Source | Description |
+|---|---|
+| `modrinth` | Modrinth mod and plugin registry |
+| `curseforge` | CurseForge mod registry |
+| `github` | Direct GitHub release downloads |
+| `mcdr` | MCDR Plugin Catalog |
+
+<Note>
+  Lucy is currently under active development. Features and APIs are subject to change. Avoid using Lucy in production environments before the first beta release.
+</Note>

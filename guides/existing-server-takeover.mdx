@@ -1,0 +1,142 @@
+---
+title: "Adopt an existing Minecraft server with Lucy"
+description: "Learn how to use lucy init to take over an existing Minecraft server without disrupting manual content, config files, or unmanaged mods."
+---
+
+Most Minecraft server tools assume you are starting from scratch. Lucy works the other way around: `lucy init` on an existing server inspects what is actually installed first, then walks you through drawing a managed boundary around the parts you want Lucy to own. Files outside that boundary are never touched. Manual content, hand-edited configs, and unmanaged mods can coexist alongside the managed scope indefinitely.
+
+<Note>
+  Make a backup of your server directory before running `lucy init`. Lucy is under active development, and while it does not write any files until you confirm at the final review step, taking a snapshot first is good practice.
+</Note>
+
+## Step-by-step guide
+
+<Steps>
+  <Step title="Navigate to your server directory">
+    Open a terminal and change into your existing server directory:
+
+    ```bash
+    cd /path/to/your/minecraft-server
+    ```
+
+    Lucy operates on the current working directory. If you have multiple server instances, run `lucy init` separately in each one.
+  </Step>
+
+  <Step title="Run lucy init">
+    Start the interactive takeover flow:
+
+    ```bash
+    lucy init
+    ```
+
+    Lucy immediately begins discovery. It inspects the directory for runtime facts — game version, server core, detected modding platform, installed mods and plugins — before prompting you for anything. What it finds is presented as an advisory overview so you can see the current state of the server before making any decisions.
+
+    The interactive flow then asks which directories and packages should fall under Lucy's managed scope. You are choosing where Lucy's ownership begins, not handing over the entire server.
+  </Step>
+
+  <Step title="Review the discovered state">
+    After discovery, Lucy shows you what it found and what it intends to record. No files are written at this point. You can review:
+
+    - The detected game version and server platform
+    - Packages discovered in the current directory
+    - Which directories are proposed as managed roots
+
+    This review step is mandatory. Lucy will not persist any state until you explicitly confirm.
+  </Step>
+
+  <Step title="Choose what enters the managed scope">
+    During the interactive flow you decide which packages should be **required** (explicitly managed by Lucy), which should become **transitive** (managed as dependencies), and which should remain outside Lucy's scope entirely.
+
+    Packages you select become part of the manifest. Packages you leave out remain on disk and are treated as unmanaged — Lucy records their presence as observed state but does not claim ownership of them.
+  </Step>
+
+  <Step title="Handle existing .lucy/ files">
+    If a `.lucy/` directory already exists in the server folder — for example, from a previous partial init — Lucy offers three conflict modes:
+
+    | Mode | Behavior |
+    |---|---|
+    | `preserve` | Keep existing files, skip writing new ones. **This is the default.** |
+    | `abort` | Stop immediately if any `.lucy/` file already exists. |
+    | `overwrite` | Replace all existing `.lucy/` files with the new init result. |
+
+    To select a conflict mode:
+
+    ```bash
+    lucy init --conflict preserve   # default
+    lucy init --conflict abort
+    lucy init --conflict overwrite
+    ```
+  </Step>
+
+  <Step title="Confirm and review the written files">
+    After you confirm the review step, Lucy writes three files under `.lucy/`:
+
+    ```text
+    .lucy/
+      config.toml     # Scope boundaries, source preferences, upgrade policy
+      manifest.json   # Package intent — what you want Lucy to manage
+      lock.json       # Exact resolved facts — versions, hashes, install paths
+    ```
+
+    Lucy prints a summary of which files were written and which were preserved. If no changes were needed, the summary says so.
+  </Step>
+</Steps>
+
+## Understanding the result
+
+After a takeover init, the manifest reflects the choices you made during the flow. Packages you placed in the managed scope are recorded with their role:
+
+| Role | Meaning |
+|---|---|
+| `required` | Explicitly chosen by you. Lucy keeps these in sync. |
+| `transitive` | Pulled in as a dependency of a required package. Lucy manages them automatically. |
+| `ignored` | Present on disk but outside Lucy's ownership. Lucy observes them but never modifies or deletes them. |
+
+The lockfile records the exact resolved version, hash, source, and install path for every package in the managed closure. The manifest stores your intent (including fuzzy selectors like `@latest` or `@compatible`); the lockfile stores the concrete facts.
+
+## Coexistence of manual and managed content
+
+Lucy only acts within the directories listed in `managed_roots` in `.lucy/config.toml`. Files anywhere else on disk — world data, hand-crafted configs, operator-installed jars outside managed roots — are never touched by `lucy install`, `lucy add`, or any other command.
+
+If you have specific files inside a managed root that you want to exclude from drift detection, add glob patterns to `unmanaged_paths` in your config:
+
+```toml
+[scope]
+managed_roots = ["mods", "plugins", "config"]
+unmanaged_paths = ["config/server.properties", "config/ops.json"]
+```
+
+Paths matching `unmanaged_paths` are ignored during status checks and drift reporting. Lucy will not flag them as unexpected or attempt to manage them.
+
+## Non-interactive takeover
+
+For scripted or automated workflows, pass `--yes` to skip all prompts and accept defaults:
+
+```bash
+lucy init --yes --game-version 1.21.4
+```
+
+You can combine `--yes` with `--conflict` to control what happens if `.lucy/` already exists:
+
+```bash
+lucy init --yes --conflict overwrite
+```
+
+In non-interactive mode, Lucy requires that managed roots can be determined from the environment. If they cannot, the command exits with an error and asks you to run the interactive flow instead.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="add command" icon="plus" href="/commands/add">
+    Add mods, plugins, and server cores to the managed manifest after takeover.
+  </Card>
+  <Card title="install command" icon="download" href="/commands/install">
+    Apply the lockfile to sync the managed runtime scope.
+  </Card>
+  <Card title="config.toml reference" icon="sliders" href="/configuration/config-file">
+    Configure managed roots, unmanaged paths, source priority, and upgrade policy.
+  </Card>
+  <Card title="Managed scope" icon="circle-dot" href="/concepts/managed-scope">
+    Understand exactly what Lucy owns and what stays outside its boundary.
+  </Card>
+</CardGroup>

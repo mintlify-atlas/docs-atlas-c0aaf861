@@ -1,0 +1,98 @@
+---
+title: "Enable shell completion for Lucy"
+description: "Lucy supports tab completion for commands, subcommands, flags, and package identifiers in bash, zsh, fish, and PowerShell. Set up completion in a few steps."
+---
+
+Lucy ships with a built-in completion engine that covers commands, subcommands, flags, and package identifiers. When you press Tab after `lucy add` or `lucy search`, the completion engine suggests valid platform prefixes, project names, and version selectors fetched from configured sources. Setting up completion takes one command per shell.
+
+<Tabs>
+  <Tab title="bash">
+    **System-wide install** (requires root):
+
+    ```bash
+    lucy completion bash > /etc/bash_completion.d/lucy
+    ```
+
+    **User install** (no root required):
+
+    ```bash
+    lucy completion bash >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+    After sourcing, Tab completion is active in the current session and all future sessions.
+
+    <Note>
+      If your system uses `/usr/share/bash-completion/completions/` instead of `/etc/bash_completion.d/`, write the script there instead.
+    </Note>
+  </Tab>
+
+  <Tab title="zsh">
+    Write the completion script to a directory on your `fpath`:
+
+    ```bash
+    lucy completion zsh > "${fpath[1]}/_lucy"
+    ```
+
+    Then reload your shell configuration:
+
+    ```bash
+    source ~/.zshrc
+    ```
+
+    If you have not yet enabled completion in zsh, add the following to your `~/.zshrc` before the line above:
+
+    ```bash
+    autoload -Uz compinit
+    compinit
+    ```
+
+    <Note>
+      `${fpath[1]}` resolves to the first directory on your `fpath`. If that directory does not exist or is not writable, run `echo $fpath` to list alternatives and choose one that suits your setup.
+    </Note>
+  </Tab>
+
+  <Tab title="fish">
+    fish reads completion scripts from `~/.config/fish/completions/` automatically. Write the script there and it takes effect in new sessions immediately:
+
+    ```bash
+    lucy completion fish > ~/.config/fish/completions/lucy.fish
+    ```
+
+    No further configuration is required. Open a new fish session and Tab completion for `lucy` is available.
+  </Tab>
+
+  <Tab title="PowerShell">
+    Generate the completion script and evaluate it in the current session:
+
+    ```powershell
+    lucy completion powershell | Out-String | Invoke-Expression
+    ```
+
+    To make this permanent, add the same line to your PowerShell profile so it runs on every session start:
+
+    ```powershell
+    Add-Content $PROFILE "`nlucy completion powershell | Out-String | Invoke-Expression"
+    ```
+
+    If your `$PROFILE` file does not exist yet, create it first:
+
+    ```powershell
+    New-Item -ItemType File -Force $PROFILE
+    ```
+  </Tab>
+</Tabs>
+
+## Package identifier completion
+
+Lucy provides context-aware completion for package identifiers when typing after `lucy add` or `lucy search`. The completion engine parses the partial token you have typed and suggests the appropriate segment:
+
+- **Platform prefix** — when you have typed nothing or a partial platform (e.g., `fab`), Lucy suggests valid platform names: `fabric`, `forge`, `neoforge`, `mcdr`, `minecraft`.
+- **Project name** — after you type a `/`, Lucy queries configured sources for matching project names.
+- **Version selector** — after you type `@`, Lucy suggests `compatible` and `latest`.
+
+For example, typing `lucy add fab` and pressing Tab suggests `fabric`. Pressing Tab again after `fabric/` queries upstream sources for Fabric-compatible packages matching what you have typed so far.
+
+<Note>
+  Project name suggestions require a network request to configured upstream sources. If the request is slow or unavailable, completion falls back to the static set of platform and version candidates.
+</Note>

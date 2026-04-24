@@ -1,0 +1,125 @@
+---
+title: "config.toml — Lucy policy configuration"
+description: "The .lucy/config.toml file controls source priority, upgrade strategy, managed scope paths, optional dependency handling, and output formatting for Lucy."
+---
+
+The `.lucy/config.toml` file holds all operator-level policy for a Lucy project. It tells Lucy how to select and prioritize package sources, which upgrade strategy to use, which filesystem paths fall under managed scope, whether optional dependencies are included, and how CLI output is formatted. Config owns policy and defaults — it does not store desired packages, resolved artifact hashes, or download URLs. Those belong to the manifest and lock files respectively.
+
+Lucy generates a default `config.toml` when you run `lucy init`. You can edit any field at any time; changes take effect on the next Lucy command.
+
+## Complete example
+
+```toml
+[meta]
+format_version = "v1"
+
+[sources]
+priority = ["modrinth", "curseforge", "github", "mcdr"]
+preferred = "auto"
+allow_custom = false
+
+[upgrade]
+mode = "compatible"
+allow_major_bumps = false
+
+[scope]
+managed_roots = ["mods", "plugins", "config"]
+unmanaged_paths = []
+preserve_on_remove = ["config/**"]
+
+[optional]
+include_optional = false
+client_mods = false
+
+[output]
+no_style = false
+json = false
+```
+
+## `[meta]`
+
+The `[meta]` section identifies the file format version. Lucy rejects config files whose `format_version` it does not recognise.
+
+<ParamField path="meta.format_version" type="string" required default="v1">
+  Config file format version. Must be `"v1"` for the current release. Lucy returns an error if this field is missing or set to an unsupported value.
+</ParamField>
+
+## `[sources]`
+
+The `[sources]` section controls which package registries Lucy queries and in what order.
+
+<ParamField path="sources.priority" type="string[]" default='["modrinth", "curseforge", "github", "mcdr"]'>
+  Ordered list of sources Lucy tries when resolving a package. Earlier entries have higher priority. Valid entries are `"modrinth"`, `"curseforge"`, `"github"`, and `"mcdr"`. Duplicate or unknown entries are rejected at validation time.
+</ParamField>
+
+<ParamField path="sources.preferred" type="string" default='"auto"'>
+  Default source used when a package specifies `source = "auto"`. When set to `"auto"`, Lucy picks the highest-priority source from `priority` that has a matching result. Valid values: `"auto"`, `"modrinth"`, `"curseforge"`, `"github"`, `"mcdr"`.
+</ParamField>
+
+<ParamField path="sources.allow_custom" type="boolean" default="false">
+  When `true`, Lucy accepts direct URLs (git repositories, HTTP archives) as package sources. Disabled by default because custom sources bypass the hash and metadata checks that Lucy applies to known registries.
+</ParamField>
+
+## `[upgrade]`
+
+The `[upgrade]` section defines the version resolution strategy Lucy applies when installing or upgrading packages.
+
+<ParamField path="upgrade.mode" type="string" default='"compatible"'>
+  Version resolution strategy applied globally when packages do not pin a version explicitly. Accepted values:
+
+  - `"compatible"` — resolve to the latest version compatible with the current game version and platform, respecting semver-compatible ranges.
+  - `"latest"` — always resolve to the absolute newest published version, regardless of compatibility signals.
+  - `"pinned"` — treat all versions as pinned; Lucy will not upgrade any package unless you update the manifest manually.
+</ParamField>
+
+<ParamField path="upgrade.allow_major_bumps" type="boolean" default="false">
+  When `false`, Lucy refuses to upgrade a package across a major version boundary unless the manifest explicitly pins the new version. Set to `true` to allow major version upgrades during automated resolution.
+</ParamField>
+
+## `[scope]`
+
+The `[scope]` section defines the filesystem paths that Lucy owns, monitors for drift, and cleans up on package removal.
+
+<ParamField path="scope.managed_roots" type="string[]" default='["mods", "plugins", "config"]'>
+  Relative paths (from the project root) that Lucy treats as managed directories. Lucy installs packages into these directories, checks them for drift during `lucy status`, and considers files inside them Lucy's responsibility. Paths outside `managed_roots` are never touched.
+</ParamField>
+
+<ParamField path="scope.unmanaged_paths" type="string[]" default="[]">
+  Glob patterns for files inside `managed_roots` that Lucy should ignore during drift detection. Files matching these patterns are visible to Lucy but are excluded from `lucy status` warnings. Useful for hand-placed files you want to keep alongside managed packages.
+
+  ```toml
+  unmanaged_paths = ["mods/my-custom-*.jar", "config/localoverrides/**"]
+  ```
+</ParamField>
+
+<ParamField path="scope.preserve_on_remove" type="string[]" default='["config/**"]'>
+  Glob patterns for files that Lucy must not delete when removing a package, even if those files were installed by that package. Defaults to `"config/**"` to prevent configuration files from being wiped on package removal. Add additional patterns for any files you want Lucy to leave in place.
+</ParamField>
+
+## `[optional]`
+
+The `[optional]` section controls whether Lucy includes optional and client-side dependencies in the resolved closure.
+
+<ParamField path="optional.include_optional" type="boolean" default="false">
+  When `true`, Lucy includes optional dependencies declared by packages in the resolved graph. Optional dependencies are omitted by default because they are rarely needed on a server and may pull in a large number of additional packages.
+</ParamField>
+
+<ParamField path="optional.client_mods" type="boolean" default="false">
+  When `true`, Lucy includes packages marked as `side = "client"` in the resolved graph. Server-side installations should leave this `false`; enabling it is only appropriate when managing a client-side or universal modpack.
+</ParamField>
+
+## `[output]`
+
+The `[output]` section controls how Lucy formats its CLI output.
+
+<ParamField path="output.no_style" type="boolean" default="false">
+  When `true`, Lucy disables all ANSI color codes and styled terminal output. Use this when piping Lucy output to log files or CI systems that do not support color codes.
+</ParamField>
+
+<ParamField path="output.json" type="boolean" default="false">
+  When `true`, Lucy emits structured JSON output instead of human-readable text. Useful for scripting or integrating Lucy with other tooling. The JSON schema matches the internal state structures.
+</ParamField>
+
+<Note>
+  `config.toml` is a policy file. It must not contain desired package lists, resolved artifact hashes, or download URLs — those fields belong in `manifest.json` and `lock.json` respectively. Lucy enforces this boundary at validation time.
+</Note>

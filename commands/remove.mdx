@@ -1,0 +1,59 @@
+---
+title: "lucy remove — remove packages from the server"
+description: "lucy remove deletes required package intent from the manifest and prunes no-longer-needed transitive dependencies from the lockfile."
+---
+
+`lucy remove` is how you withdraw packages from Lucy's management. It removes the addressed package from `required` intent in `.lucy/manifest.json` and then prunes any transitive dependencies that are no longer needed by any remaining required root. The runtime is not touched; run [`lucy install`](/commands/install) after removing packages to converge the server's file system to the updated state.
+
+## What `remove` changes
+
+`remove` is a manifest and lockfile operation only:
+
+1. **Manifest** — the addressed package is removed from `required` intent. Other required roots are not affected. Packages marked `ignored` are never touched by `remove`.
+2. **Lockfile** — the transitive closure is re-evaluated after the required-intent removal. Lock entries for packages that are no longer reachable from any remaining `required` root are pruned. Packages still needed by another required root are kept.
+
+<Warning>
+  `lucy remove` does not delete files from the server's file system. Run `lucy install` to synchronize the managed runtime scope after removing packages.
+</Warning>
+
+## Ignored packages
+
+Packages with the `ignored` role in the manifest are never affected by `remove`. Lucy treats them as outside its managed boundary regardless of the operation.
+
+## Flags
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Remove a Fabric mod from managed intent
+lucy remove fabric/lithium
+
+# Remove an MCDR plugin
+lucy remove mcdr/example-plugin
+
+# Remove a mod, then sync the runtime to apply the change
+lucy remove fabric/sodium
+lucy install
+```

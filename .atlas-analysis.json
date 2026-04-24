@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Lucy",
+  "projectType": "cli-tool",
+  "projectName": "Lucy",
+  "projectDescription": "A takeover-first Minecraft server environment manager that installs and tracks mods, plugins, and server cores from Modrinth, CurseForge, GitHub, and the MCDR Plugin Catalog.",
   "theme": "aspen",
-  "colors": {
-    "primary": "#4CAF50",
-    "light": "#81C784",
-    "dark": "#2E7D32"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/mclucy/lucy"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/mclucy/lucy"
-    }
-  },
+  "primaryColor": "#4CAF50",
+  "lightColor": "#81C784",
+  "darkColor": "#2E7D32",
   "navigation": {
     "tabs": [
       {
@@ -71,5 +59,29 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Takeover-first design: adopts existing Minecraft servers before managing them",
+    "Automatic dependency resolution and conflict handling",
+    "Multi-source package access: Modrinth, CurseForge, GitHub, MCDR Plugin Catalog",
+    "Soft manifest intent paired with exact lockfile facts",
+    "Topology-aware server environment probing and risk surfacing",
+    "Machine-readable JSON output for CI/CD pipelines",
+    "Shell completion for bash, zsh, fish, and PowerShell",
+    "Non-intrusive: all operations are independent of server runtime"
+  ],
+  "publicApiSurface": [
+    "lucy init",
+    "lucy add <platform/project@version>",
+    "lucy remove <platform/project>",
+    "lucy install",
+    "lucy search <query>",
+    "lucy status",
+    "lucy info <platform/project@version>",
+    "lucy cache ls",
+    "lucy cache clear",
+    ".lucy/config.toml",
+    ".lucy/manifest.toml",
+    ".lucy/lock.json"
+  ]
 }

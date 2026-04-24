@@ -1,0 +1,94 @@
+---
+title: "lucy status — server environment overview"
+description: "lucy status displays a neofetch-style overview of the current Minecraft server: game version, platform, topology, risk level, detected mods and plugins."
+---
+
+`lucy status` probes the current directory and renders a [neofetch](https://github.com/dylanaraps/neofetch)-style summary of everything Lucy can detect about the server environment. It is a read-only command — it never modifies the manifest, lockfile, or any files on disk. Use it to audit what is installed, confirm the detected platform and topology, and identify potential risk signals before making changes.
+
+## What status shows
+
+`lucy status` displays the following fields when the relevant information can be detected:
+
+| Field | Description |
+|---|---|
+| **Game** | Minecraft game version, annotated with the primary server JAR name (entrance) |
+| **Activity** | Whether the server process is currently running, and its PID if active |
+| **Platform** | Detected modding platform (Fabric, Forge, NeoForge, Paper, etc.) and its version |
+| **Topology** | Environment shape — proxy, hybrid, bridge, protocol bridge, or standalone |
+| **Risk** | Risk level surfaced from topology warnings: Low, Medium, High, or Critical |
+| **Mods** | List of detected mods when a mod-loader platform is active (Fabric, Forge, NeoForge) |
+| **Plugins** | List of detected plugins when a plugin-capable platform is active (Bukkit/Paper family) |
+| **MCDR** | MCDR installation status and list of detected MCDR plugins when an MCDR environment is present |
+
+If no server is found in the current directory, `status` reports `(No server found)`.
+
+## Topology types
+
+Lucy classifies the server's runtime shape into one of these topology roles:
+
+- **Mod loader** — a standard single-loader environment (Fabric, Forge, NeoForge)
+- **Plugin core** — a Bukkit-derived server (Paper, Spigot, Folia, etc.)
+- **Hybrid** — a server that hosts multiple compatible layers (e.g., NeoForge + Bukkit via Youer)
+- **Proxy** — a proxy server routing to backend nodes (Velocity, BungeeCord, Waterfall)
+- **Bridge** — a compatibility layer between two runtime environments
+- **Protocol bridge** — provides cross-protocol client compatibility (e.g., Geyser Standalone)
+
+## Risk levels
+
+When a topology carries compatibility or stability concerns, `status` surfaces a risk level:
+
+| Level | Meaning |
+|---|---|
+| None | No detected risk |
+| Low | Minor compatibility caveats |
+| Medium | Known compatibility tensions; review recommended |
+| High | Significant stability or compatibility risk |
+| Critical | Severe risk; proceed with caution |
+
+## Flags
+
+<ParamField path="--json" type="boolean" default="false">
+  Output the full server info structure as machine-readable JSON.
+</ParamField>
+
+<ParamField path="--long" type="boolean" default="false">
+  Show full package names with their install paths instead of short name-only labels. Shorthand: `-l`.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Display the server environment overview
+lucy status
+
+# Show full package names and install paths
+lucy status --long
+
+# Output environment data as JSON for scripting
+lucy status --json
+
+# Display without colors or styling
+lucy status --no-style
+```

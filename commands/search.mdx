@@ -1,0 +1,96 @@
+---
+title: "lucy search — find mods and plugins"
+description: "lucy search queries Modrinth, CurseForge, and other sources for mods and plugins matching your query. Supports filtering by platform, source, and sort order."
+---
+
+`lucy search` queries upstream sources — Modrinth, CurseForge, the MCDR Plugin Catalog, and GitHub — for mods and plugins that match your query. By default it searches all sources appropriate for the detected environment and returns results ranked by relevance. You can narrow results by platform or source, change the sort order, and switch to machine-readable output for scripting.
+
+## Query syntax
+
+The search query follows the same `platform/project` format used elsewhere in Lucy:
+
+```text
+lucy search fabric/carpet
+              ↑       ↑
+          platform  name
+```
+
+The platform prefix is optional. Omitting it searches across all sources. Including it restricts the search to sources that serve that platform.
+
+## Sources
+
+Lucy searches these upstream sources by default (or as appropriate for the detected platform):
+
+| Source | Serves |
+|---|---|
+| `modrinth` | Fabric, Forge, NeoForge, and other mod-loader packages |
+| `curseforge` | Fabric, Forge, NeoForge, and other mod-loader packages |
+| `github` | General package discovery |
+| `mcdr` | MCDR plugins via the MCDR Plugin Catalog |
+
+## Flags
+
+<ParamField path="--index" type="string" default="relevance">
+  Sort order for search results. Accepted values: `relevance`, `downloads`, `newest`. Shorthand: `-i`.
+</ParamField>
+
+<ParamField path="--client" type="boolean" default="false">
+  Include client-only mods in the results. By default these are hidden because Lucy manages server-side environments. Shorthand: `-c`.
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Filter results to a specific modding platform. Accepted values: `fabric`, `forge`, `neoforge`, `bukkit`.
+</ParamField>
+
+<ParamField path="--source" type="string">
+  Restrict the search to a single upstream source. Accepted values: `modrinth`, `curseforge`, `github`, `mcdr`. Shorthand: `-s`.
+</ParamField>
+
+<ParamField path="--long" type="boolean" default="false">
+  Show the full result list without truncation. By default the output is capped to fit the terminal height. Shorthand: `-l`.
+</ParamField>
+
+<ParamField path="--json" type="boolean" default="false">
+  Output results as machine-readable JSON.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output globally.
+</ParamField>
+
+## Examples
+
+```bash
+# Search for carpet across all default sources
+lucy search fabric/carpet
+
+# Search for carpet on Modrinth, sorted by download count
+lucy search carpet --source modrinth --index downloads
+
+# Search for Create on NeoForge specifically
+lucy search create --platform neoforge
+
+# Show full Geyser results without truncation
+lucy search geyser --long
+
+# Search for MCDR plugins and output as JSON
+lucy search mcdr/handler --source mcdr --json
+```

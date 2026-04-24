@@ -1,0 +1,187 @@
+---
+title: "manifest.json — package intent declaration"
+description: "Reference for .lucy/manifest.json — the intent layer for Lucy projects. Documents all fields: environment, packages array with roles, and bundles."
+---
+
+The `.lucy/manifest.json` file is the intent layer for a Lucy project. It describes what environment Lucy should converge toward — the target game version, modding platform, direct package roots, and any managed bundles. Lucy reads this file to understand what you want, then resolves and records exact facts in `lock.json`. The manifest itself is never overwritten with resolved artifact details.
+
+A key property of the manifest is version preservation. If you write `"version": "compatible"` for a package, Lucy resolves a concrete version internally and records that in the lock file, but your manifest entry stays as `"compatible"`. Lucy never replaces your intent with the resolved fact.
+
+## Complete example
+
+```json
+{
+  "format_version": "v1",
+  "environment": {
+    "game_version": "1.21.1",
+    "server_core": "fabric-installer",
+    "server_core_version": "1.0.1",
+    "modding_platform": "fabric",
+    "modding_platform_version": "0.16.9",
+    "compatible_platforms": [],
+    "mcdr": false,
+    "declared_capabilities": []
+  },
+  "packages": [
+    {
+      "id": "fabric/fabric-api",
+      "version": "compatible",
+      "source": "auto",
+      "role": "required",
+      "side": "server",
+      "optional": false,
+      "pinned": false
+    },
+    {
+      "id": "fabric/lithium",
+      "version": "0.12.1",
+      "source": "modrinth",
+      "role": "required",
+      "side": "server",
+      "optional": false,
+      "pinned": true
+    },
+    {
+      "id": "fabric/sodium",
+      "version": "compatible",
+      "source": "auto",
+      "role": "transitive",
+      "side": "client",
+      "optional": false,
+      "pinned": false
+    }
+  ],
+  "bundles": [
+    {
+      "name": "server-config",
+      "type": "config",
+      "path": "config/server-config",
+      "source": "https://github.com/example/server-config",
+      "optional": false
+    }
+  ]
+}
+```
+
+## Top-level fields
+
+<ParamField path="format_version" type="string" required>
+  Manifest format version. Must be `"v1"` for the current release.
+</ParamField>
+
+## `environment`
+
+The `environment` object describes the target Minecraft environment. Lucy uses these values to filter compatible package versions during resolution.
+
+<ParamField path="environment.game_version" type="string">
+  Target Minecraft game version (e.g., `"1.21.1"`). Lucy uses this to filter packages to those compatible with the declared version.
+</ParamField>
+
+<ParamField path="environment.server_core" type="string">
+  Name of the server core binary or installer (e.g., `"fabric-installer"`, `"forge"`). Used for environment context; Lucy does not directly manage the server core binary in v1.
+</ParamField>
+
+<ParamField path="environment.server_core_version" type="string">
+  Version of the server core (e.g., `"1.0.1"`).
+</ParamField>
+
+<ParamField path="environment.modding_platform" type="string">
+  Primary modding platform for this environment. Valid values: `"fabric"`, `"forge"`, `"neoforge"`, `"mcdr"`, `"none"`. Lucy validates that packages in the closure are compatible with this platform.
+</ParamField>
+
+<ParamField path="environment.modding_platform_version" type="string">
+  Version of the primary modding platform loader (e.g., `"0.16.9"` for Fabric). Required when `modding_platform` is set to a value other than `"none"`.
+</ParamField>
+
+<ParamField path="environment.compatible_platforms" type="string[]">
+  Additional platforms this environment is compatible with. Allows Lucy to resolve packages from multiple ecosystems in the same closure. Valid entries depend on the primary platform:
+
+  - `"neoforge"` primary: accepts `"fabric"`, `"mcdr"`, `"sinytra"`
+  - `"fabric"` or `"forge"` primary: accepts `"mcdr"`
+
+  `"sinytra"` is only valid when `modding_platform` is `"neoforge"`, as it signals Sinytra Connector compatibility for Fabric mods on NeoForge.
+</ParamField>
+
+<ParamField path="environment.mcdr" type="boolean" default="false">
+  Whether MCDR (MCDReforged) is present in this environment. When `true`, Lucy can resolve MCDR plugins alongside mods.
+</ParamField>
+
+<ParamField path="environment.declared_capabilities" type="string[]">
+  Explicit capability declarations for this environment. Used to signal platform features that are not directly expressed by the modding platform field. Defaults to an empty array.
+</ParamField>
+
+## `packages`
+
+The `packages` array lists every package in the managed closure — both direct roots and transitive dependencies. Lucy populates transitive entries automatically; you typically only write `"required"` entries by hand or via `lucy add`.
+
+<ParamField path="packages[].id" type="string" required>
+  Package identifier in `platform/name` format, for example `"fabric/fabric-api"` or `"neoforge/create"`. The `id` field must not include a version — use the `version` field for that. Valid platform prefixes: `fabric`, `forge`, `neoforge`, `mcdr`. Note: this is the modding platform, not the source registry.
+</ParamField>
+
+<ParamField path="packages[].version" type="string" required>
+  Version intent for this package. Lucy preserves this field verbatim and never replaces it with the resolved exact version. Accepted values:
+
+  - An exact version string such as `"0.12.1"` — Lucy resolves exactly this version.
+  - `"compatible"` — Lucy resolves the latest version compatible with the declared game version and platform.
+  - `"latest"` — Lucy resolves the absolute newest published version.
+
+  The resolved concrete version is recorded in `lock.json`, not here.
+</ParamField>
+
+<ParamField path="packages[].source" type="string" required>
+  Source registry for this package. Valid values: `"auto"`, `"modrinth"`, `"curseforge"`, `"github"`, `"mcdr"`. Use `"auto"` to let Lucy pick the highest-priority source that has a match, as configured in `config.toml`.
+</ParamField>
+
+<ParamField path="packages[].role" type="string" required>
+  Describes how Lucy should treat this package entry. Valid values:
+
+  - `"required"` — explicit operator intent. Lucy will always install and keep this package. Used for packages you added via `lucy add` or during `lucy adopt`.
+  - `"transitive"` — a dependency Lucy derived during resolution. Lucy may prune this entry automatically when no required package needs it anymore.
+  - `"ignored"` — a package Lucy sees in the managed directories but that is explicitly outside Lucy's sync responsibility. Lucy will not install, upgrade, or remove ignored packages.
+</ParamField>
+
+<ParamField path="packages[].side" type="string" required>
+  Indicates which runtime side this package targets. Valid values: `"server"`, `"client"`, `"both"`, `"unknown"`. Lucy uses this to filter packages when `client_mods = false` is set in `config.toml`.
+</ParamField>
+
+<ParamField path="packages[].optional" type="boolean" default="false">
+  When `true`, this package is an optional dependency. Lucy omits optional packages from the resolved closure unless `include_optional = true` is set in `config.toml`.
+</ParamField>
+
+<ParamField path="packages[].pinned" type="boolean" default="false">
+  When `true`, Lucy treats the declared version as fixed and will not upgrade it during `lucy upgrade`, even if a newer compatible version is available. Pinned packages are still upgraded when you manually update the manifest version string.
+</ParamField>
+
+## `bundles`
+
+The `bundles` array lists non-package managed artifacts such as configuration sets, datapacks, resource packs, and KubeJS scripts.
+
+<ParamField path="bundles[].name" type="string" required>
+  Human-readable name for the bundle (e.g., `"server-config"`). Must be non-empty.
+</ParamField>
+
+<ParamField path="bundles[].type" type="string" required>
+  Bundle category. Valid values: `"config"`, `"datapack"`, `"resourcepack"`, `"kubejs"`, `"custom"`.
+</ParamField>
+
+<ParamField path="bundles[].path" type="string" required>
+  Relative path (from the project root) where Lucy installs the bundle contents.
+</ParamField>
+
+<ParamField path="bundles[].source" type="string" required>
+  Source URL or identifier for the bundle. This is where Lucy fetches the bundle from (e.g., a GitHub repository URL or a direct archive link).
+</ParamField>
+
+<ParamField path="bundles[].optional" type="boolean" default="false">
+  When `true`, this bundle is skipped unless the operator explicitly opts in. Useful for bundles that only apply to specific deployment scenarios.
+</ParamField>
+
+## Version intent preservation
+
+Lucy makes a deliberate distinction between *intent* and *fact*. The manifest stores intent — what you want. The lock file stores fact — what Lucy resolved.
+
+<Note>
+  If you write `"version": "compatible"` in the manifest, Lucy resolves a concrete version at install time and records it in `lock.json`. Your manifest entry remains `"compatible"`. Lucy will never rewrite your intent with a pinned version string, and running `lucy install` again will re-resolve using the same intent.
+</Note>
+
+This means you can safely run `lucy upgrade` without fear of the manifest being permanently rewritten. To permanently pin a package to a specific version, set `"version"` to the exact string and `"pinned": true`.

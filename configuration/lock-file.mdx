@@ -1,0 +1,185 @@
+---
+title: "lock.json — exact resolved package facts"
+description: "The .lucy/lock.json file records exact resolved versions, hashes, download URLs, and install paths for every package. Commit it for reproducible installs."
+---
+
+The `.lucy/lock.json` file is the resolved-state layer for a Lucy project. After Lucy resolves a manifest, it writes every concrete fact it determined — exact versions, direct download URLs, file hashes, install paths, and the dependency chain that required each package — into `lock.json`. This file is what makes Lucy installs reproducible: given the same `lock.json`, `lucy install` will download and place exactly the same artifacts every time.
+
+You should commit `lock.json` to version control alongside `manifest.json`. Do not edit `lock.json` by hand. Lucy manages it entirely and will overwrite it on the next resolution.
+
+## Complete example
+
+```json
+{
+  "version": "v1",
+  "generated_at": "2026-04-24T10:00:00Z",
+  "manifest_fingerprint": "sha256:a3f1c2e9b4d7820f6e1234567890abcdef1234567890abcdef1234567890abcd",
+  "game_version": "1.21.1",
+  "platform": "fabric",
+  "platform_version": "0.16.9",
+  "packages": [
+    {
+      "id": "fabric/fabric-api",
+      "version": "0.110.0+1.21.1",
+      "source": "modrinth",
+      "url": "https://cdn.modrinth.com/data/.../fabric-api-0.110.0+1.21.1.jar",
+      "filename": "fabric-api-0.110.0+1.21.1.jar",
+      "hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      "hash_algorithm": "sha1",
+      "install_path": "mods/fabric-api-0.110.0+1.21.1.jar",
+      "side": "both",
+      "optional": false,
+      "embedded": false,
+      "provenance": ["root"],
+      "requester": "root"
+    },
+    {
+      "id": "fabric/lithium",
+      "version": "0.12.1",
+      "source": "modrinth",
+      "url": "https://cdn.modrinth.com/data/.../lithium-0.12.1.jar",
+      "filename": "lithium-0.12.1.jar",
+      "hash": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      "hash_algorithm": "sha1",
+      "install_path": "mods/lithium-0.12.1.jar",
+      "side": "server",
+      "optional": false,
+      "embedded": false,
+      "provenance": ["root"],
+      "requester": "root"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "server-config",
+      "type": "config",
+      "hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      "install_path": "config/server-config"
+    }
+  ]
+}
+```
+
+## Top-level fields
+
+<ParamField path="version" type="string" required>
+  Lock file format version. Always `"v1"` for the current release. Lucy rejects lock files with an unsupported or missing version.
+</ParamField>
+
+<ParamField path="generated_at" type="string" required>
+  ISO 8601 / RFC 3339 timestamp recording when Lucy last wrote this lock file (e.g., `"2026-04-24T10:00:00Z"`). Used for auditing and stale-detection diagnostics.
+</ParamField>
+
+<ParamField path="manifest_fingerprint" type="string" required>
+  SHA-256 hex digest of the manifest file as it existed when Lucy produced this lock. Lucy compares this fingerprint against the current manifest on every `lucy install` run. If the digests differ, Lucy treats the lock as stale and falls back to resolving from manifest intent rather than using the cached lock facts.
+</ParamField>
+
+<ParamField path="game_version" type="string" required>
+  The resolved Minecraft game version for this closure (e.g., `"1.21.1"`). Copied from `manifest.json` at resolution time.
+</ParamField>
+
+<ParamField path="platform" type="string" required>
+  The resolved primary modding platform (e.g., `"fabric"`, `"forge"`, `"neoforge"`, `"mcdr"`, `"none"`). Must match one of the valid platform identifiers.
+</ParamField>
+
+<ParamField path="platform_version" type="string" required>
+  The resolved version of the primary modding platform loader (e.g., `"0.16.9"`).
+</ParamField>
+
+## `packages`
+
+Each entry in the `packages` array is a fully resolved artifact record. Lock entries are fact records — fuzzy version selectors such as `"compatible"` or `"latest"` are not valid here.
+
+<ParamField path="packages[].id" type="string" required>
+  Package identifier in `platform/name` format (e.g., `"fabric/fabric-api"`). Matches the `id` field in `manifest.json`. The platform prefix is the modding platform, not the source registry.
+</ParamField>
+
+<ParamField path="packages[].version" type="string" required>
+  Exact concrete version resolved for this package (e.g., `"0.110.0+1.21.1"`). Fuzzy selectors (`"compatible"`, `"latest"`) are invalid in a lock entry. This is the version Lucy will download and verify.
+</ParamField>
+
+<ParamField path="packages[].source" type="string" required>
+  The registry that provided this package. Valid values: `"modrinth"`, `"curseforge"`, `"github"`, `"mcdr"`, `"direct"`. Unlike the manifest, `"auto"` is not valid here — the source is always resolved to a concrete registry.
+</ParamField>
+
+<ParamField path="packages[].url" type="string" required>
+  Direct download URL for the artifact file. Lucy fetches from this URL during `lucy install`.
+</ParamField>
+
+<ParamField path="packages[].filename" type="string" required>
+  The file name of the downloaded artifact (e.g., `"fabric-api-0.110.0+1.21.1.jar"`). Lucy uses this as the final filename when writing the artifact to `install_path`.
+</ParamField>
+
+<ParamField path="packages[].hash" type="string" required>
+  Integrity hash of the downloaded file. Lucy verifies the downloaded artifact against this value before installing it. If the hash does not match, the install is aborted.
+</ParamField>
+
+<ParamField path="packages[].hash_algorithm" type="string" required>
+  Algorithm used to produce `hash`. Valid values: `"sha1"`, `"sha512"`.
+</ParamField>
+
+<ParamField path="packages[].install_path" type="string" required>
+  Relative path (from the project root) where Lucy places the artifact file (e.g., `"mods/fabric-api-0.110.0+1.21.1.jar"`). Must fall within one of the `managed_roots` declared in `config.toml`.
+</ParamField>
+
+<ParamField path="packages[].side" type="string" required>
+  Runtime side for this artifact. Valid values: `"server"`, `"client"`, `"both"`. Note that `"unknown"` is valid in the manifest but is resolved to a concrete side in the lock.
+</ParamField>
+
+<ParamField path="packages[].optional" type="boolean">
+  Whether this package is an optional dependency in the resolved graph.
+</ParamField>
+
+<ParamField path="packages[].embedded" type="boolean">
+  When `true`, this package is embedded inside another artifact (a jar-in-jar dependency). Lucy records it separately in the lock for full dependency visibility.
+</ParamField>
+
+<ParamField path="packages[].embedded_in" type="string">
+  The `id` of the package that embeds this one. Only present when `embedded` is `true`.
+</ParamField>
+
+<ParamField path="packages[].provenance" type="string[]" required>
+  Ordered list of package IDs (and `"root"`) that form the dependency chain leading to this package. The chain reads from the root of the resolution graph to the immediate requester. Use this field to understand why a transitive dependency is present.
+
+  For a direct dependency: `["root"]`
+
+  For a transitive dependency required by `fabric/fabric-api`: `["root", "fabric/fabric-api"]`
+</ParamField>
+
+<ParamField path="packages[].requester" type="string" required>
+  The immediate package that declared a dependency on this one. Use `"root"` for packages that are direct manifest roots (i.e., `role = "required"` in the manifest). For transitive packages, this is the `id` of the package that pulled them in.
+</ParamField>
+
+## `bundles`
+
+Each entry in the `bundles` array records a resolved non-package artifact bundle.
+
+<ParamField path="bundles[].name" type="string" required>
+  Bundle name, matching the `name` field in `manifest.json`.
+</ParamField>
+
+<ParamField path="bundles[].type" type="string" required>
+  Bundle type. Valid values: `"config"`, `"datapack"`, `"resourcepack"`, `"kubejs"`, `"custom"`.
+</ParamField>
+
+<ParamField path="bundles[].hash" type="string" required>
+  Integrity hash of the installed bundle content.
+</ParamField>
+
+<ParamField path="bundles[].install_path" type="string" required>
+  Relative path where the bundle was installed.
+</ParamField>
+
+## Usage notes
+
+<Warning>
+  Never edit `lock.json` by hand. Lucy overwrites it on every resolution. Manual edits will be lost and may corrupt the integrity fingerprints Lucy uses to verify installs.
+</Warning>
+
+<Tip>
+  Commit `lock.json` to version control. It enables fully reproducible installs — any team member or CI runner can execute `lucy install` and get byte-for-byte identical artifacts without re-resolving from scratch.
+</Tip>
+
+<Note>
+  Lucy uses `manifest_fingerprint` to detect when the manifest has changed since the lock was written. If you modify `manifest.json` (e.g., by running `lucy add` or editing it directly), the fingerprints will diverge and `lucy install` will fall back to resolving from manifest intent rather than using the stale lock. This is intentional — the lock is always derived from the manifest, never the other way around.
+</Note>

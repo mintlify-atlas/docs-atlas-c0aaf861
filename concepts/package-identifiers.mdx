@@ -1,0 +1,109 @@
+---
+title: "Package identifiers in Lucy"
+description: "The platform/project@version syntax Lucy uses to identify packages. Covers valid platforms, version selectors (@latest, @compatible), and normalization rules."
+---
+
+Every package in Lucy is addressed by a structured identifier made up of three parts: a platform prefix, a project name, and a version selector. Only the project name is required. The other two parts are optional and have well-defined defaults when omitted. Understanding how identifiers work helps you write precise `add`, `remove`, `search`, and `info` commands, and helps you read the manifest and lockfile correctly.
+
+## Identifier format
+
+```text
+platform/project@version
+   ↑          ↑       ↑
+platform    name   version
+```
+
+The three segments are separated by `/` (platform from name) and `@` (name from version).
+
+| Segment | Required | Default when omitted |
+|---|---|---|
+| `platform` | No | Inferred from the detected server environment |
+| `project` | Yes | — |
+| `@version` | No | `@compatible` |
+
+### Platform
+
+The platform segment tells Lucy which modding surface the package targets. When you omit it, Lucy infers the platform from the environment detected during `lucy init` or recorded in the manifest. If the environment is unambiguous — for example, a pure Fabric server — Lucy resolves the platform automatically. If the environment is ambiguous, Lucy may ask for clarification or fall back to the most likely match.
+
+Valid platform values are:
+
+| Platform | Description |
+|---|---|
+| `fabric` | Fabric mod loader |
+| `forge` | Minecraft Forge |
+| `neoforge` | NeoForge mod loader |
+| `mcdr` | MCDReforged plugin framework |
+| `minecraft` | Vanilla server core, no modding platform |
+| `none` | Platform-agnostic; satisfied by any runtime |
+
+### Project name
+
+The project name is the slug used to identify a mod, plugin, or server core. Lucy normalizes names before matching: uppercase letters are lowercased, underscores (`_`) are treated as hyphens (`-`), and backslashes are treated as forward slashes. Slugs from upstream APIs (Modrinth, CurseForge, and so on) are preferred when available.
+
+### Version selector
+
+The version segment controls which release Lucy resolves for the package. Three kinds of values are accepted:
+
+| Selector | Meaning |
+|---|---|
+| `@compatible` | Newest version that appears to fit the current environment under available metadata. This is the default when no version is specified. |
+| `@latest` | Newest available release regardless of compatibility signals. |
+| `1.2.3` | Exact version pin. Lucy uses this version directly without further resolution. |
+
+`@compatible` is a best-effort resolution. It evaluates game version and platform metadata provided by the upstream source and selects the most recent release that matches. `@latest` skips compatibility filtering and always retrieves the most recent upload.
+
+<Note>
+  The manifest stores version intent verbatim — Lucy preserves `@latest` or `@compatible` in the manifest rather than rewriting it to the currently resolved exact version. The lockfile always records the concrete resolved version.
+</Note>
+
+## Examples
+
+```bash
+# Platform inferred from environment; version defaults to @compatible
+lucy add fabric-api
+
+# Explicit platform; version defaults to @compatible
+lucy add fabric/fabric-api
+
+# Explicit platform; resolve newest available version
+lucy add fabric/lithium@latest
+
+# NeoForge package at latest
+lucy add neoforge/create-aeronautics@latest
+
+# MCDR plugin at compatible version
+lucy add mcdr/example-plugin@compatible
+```
+
+## Identity packages
+
+Some packages represent the server platform or runtime binary itself rather than a mod or plugin that runs on top of it. These are called identity packages. Lucy recognizes a fixed set of names as identity packages:
+
+| Identifier | Resolved platform |
+|---|---|
+| `minecraft` or `mc` | `minecraft` |
+| `fabric` or `fabric-loader` | `fabric` |
+| `forge` | `forge` |
+| `neoforge` | `neoforge` |
+| `mcdreforged` or `mcdr` | `mcdr` |
+
+When you specify an identity package name, Lucy automatically infers the correct platform even if you omit the platform prefix:
+
+```bash
+# These are equivalent — Lucy normalizes both to minecraft/minecraft@1.21.4
+lucy add minecraft@1.21.4
+lucy add minecraft/minecraft@1.21.4
+```
+
+Identity packages are typically used to pin or upgrade the server core binary — for example, upgrading the Minecraft server JAR or switching the NeoForge version. They follow the same `platform/project@version` format as any other package.
+
+## Syntax normalization
+
+Lucy applies a normalization pass to all identifier strings before parsing:
+
+- Uppercase letters are converted to lowercase
+- Underscores (`_`) are converted to hyphens (`-`)
+- Backslashes (`\`) are converted to forward slashes (`/`)
+- Chinese full stops (`。`) are converted to ASCII periods (`.`)
+
+This means `Fabric_API`, `fabric-api`, and `FABRIC_API` all resolve to the same project name.

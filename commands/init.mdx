@@ -1,0 +1,89 @@
+---
+title: "lucy init — initialize server management"
+description: "lucy init inspects the current directory, discovers the existing server environment, and creates .lucy/config.toml, .lucy/manifest.json, and .lucy/lock.json."
+---
+
+`lucy init` is the first command you run in any server directory. It is optimized for the takeover-first workflow: Lucy inspects the live server, records soft manifest intent from those facts, and writes an exact lockfile for the resolved managed state. No files are written until you confirm at the final review step. Lucy absorbs the existing server into a managed boundary instead of claiming total ownership of the directory, so manual and unmanaged content can continue to coexist alongside what Lucy manages.
+
+## Interactive vs non-interactive modes
+
+By default, `lucy init` runs an interactive flow that walks through your environment step by step, shows you what it detected, and asks you to confirm the managed scope before writing any files. You can cancel at any point — Lucy will not persist anything until you explicitly confirm.
+
+Pass `-y` / `--yes` to skip all prompts and accept defaults. Non-interactive mode requires that managed roots are already inferable from the environment. If Lucy cannot determine a managed scope automatically, it returns an error and prompts you to run interactively instead.
+
+## Takeover flow for existing servers
+
+When `lucy init` runs in a directory that already contains a Minecraft server, it behaves as a takeover rather than a blank-slate scaffold:
+
+1. Lucy probes the current directory for a running environment — server JAR, mod loader, installed mods and plugins, MCDR, and other detected components.
+2. It presents what it found as an advisory hint so you can see exactly what is already on disk.
+3. You decide what Lucy should manage (the managed scope) and what should remain outside its boundary.
+4. Lucy records your decisions as manifest intent and resolves a corresponding lockfile.
+
+Version hints are best-effort. Omitting a version uses `compatible` (newest version that fits the current environment), `@latest` requests the newest available, and keeping an inferred runtime version tells Lucy to match the current environment.
+
+## Files created
+
+| File | Contents |
+|---|---|
+| `.lucy/config.toml` | Managed scope, optional dependency behavior, and other operator-level settings |
+| `.lucy/manifest.json` | Soft intent — which packages you want Lucy to manage and at what version selector |
+| `.lucy/lock.json` | Exact resolved facts — precise versions, hashes, install paths, and provenance for every package in the managed closure |
+
+## Conflict modes
+
+When `.lucy/` state files already exist, `--conflict` controls how Lucy handles them:
+
+| Mode | Behavior |
+|---|---|
+| `preserve` (default) | Keep existing files; skip writing anything that already exists |
+| `abort` | Stop immediately if any Lucy state file is found |
+| `overwrite` | Replace all existing Lucy state files with the newly computed result |
+
+## Flags
+
+<ParamField path="--yes" type="boolean" default="false">
+  Non-interactive mode: accept all defaults without prompting. Shorthand: `-y`. Requires that a managed scope can be inferred automatically.
+</ParamField>
+
+<ParamField path="--conflict" type="string" default="preserve">
+  Conflict mode for existing `.lucy/` files. Accepted values: `preserve`, `abort`, `overwrite`. Shorthand: `-c`.
+</ParamField>
+
+<ParamField path="--game-version" type="string" default="1.21">
+  Game version to record when running in non-interactive mode and Lucy cannot infer the version from the environment. For example: `1.21.4`.
+</ParamField>
+
+## Global flags
+
+<ParamField path="--debug" type="boolean" default="false">
+  Show debug logs.
+</ParamField>
+
+<ParamField path="--log-file" type="boolean" default="false">
+  Output the path to the logfile.
+</ParamField>
+
+<ParamField path="--print-logs" type="boolean" default="false">
+  Print logs to console.
+</ParamField>
+
+<ParamField path="--no-style" type="boolean" default="false">
+  Disable colored and styled output.
+</ParamField>
+
+## Examples
+
+```bash
+# Interactive init — inspect the current directory and walk through setup
+lucy init
+
+# Non-interactive init using an explicit game version
+lucy init --yes --game-version 1.21.4
+
+# Interactive init that stops immediately if .lucy/ state already exists
+lucy init --conflict abort
+
+# Non-interactive init that overwrites any existing Lucy state
+lucy init --yes --conflict overwrite
+```
